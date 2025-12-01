@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess The Number Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+        <span id="themeIcon">🌙</span>
+    </div>
+
+    <div class="container" id="gameContainer">
+        <h1>🎯 Guess The Number</h1>
+        <p class="subtitle">I'm thinking of a number between 1 and 100 • Beat the clock!</p>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar" style="width: 100%;"></div>
+        </div>
+
+        <div class="game-info">
+            <div class="info-item">
+                <div class="info-label">Attempts Left</div>
+                <div class="info-value" id="attemptsLeft">5</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Range</div>
+                <div class="info-value">1-100</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Time</div>
+                <div class="info-value" id="timeLeft">45</div>
+            </div>
+        </div>
+
+        <div class="guess-history" id="guessHistory" style="display: none;">
+            <div class="guess-history-title">Your Guesses:</div>
+            <div id="historyItems"></div>
+        </div>
+
+        <div class="input-group">
+            <input type="number" id="guessInput" placeholder="Enter your guess" min="1" max="100" autofocus>
+        </div>
+
+        <button id="guessBtn" onclick="makeGuess()">Submit Guess</button>
+
+        <div id="hint" class="hint"></div>
+
+        <footer>Made by Utkarsh</footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
