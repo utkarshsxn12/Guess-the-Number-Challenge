@@ -1,283 +1,337 @@
-let targetNumber = Math.floor(Math.random() * 100) + 1;
-let attemptsLeft = 5;
-let gameOver = false;
-let guessCount = 0;
-let guesses = [];
-let hintShown = false;
-let isDarkTheme = false;
-let timeLeft = 45;
-let timerInterval;
+// Game configuration based on difficulty
+const DIFFICULTY_CONFIG = {
+    easy: { min: 1, max: 100, attempts: 7, time: 60 },
+    medium: { min: 1, max: 150, attempts: 5, time: 45 },
+    hard: { min: 1, max: 200, attempts: 5, time: 30 }
+};
 
-const guessInput = document.getElementById('guessInput');
-const guessBtn = document.getElementById('guessBtn');
-const hintDiv = document.getElementById('hint');
-const attemptsDisplay = document.getElementById('attemptsLeft');
-const container = document.getElementById('gameContainer');
-const progressBar = document.getElementById('progressBar');
-const guessHistory = document.getElementById('guessHistory');
-const historyItems = document.getElementById('historyItems');
-const themeIcon = document.getElementById('themeIcon');
-const timeDisplay = document.getElementById('timeLeft');
+// Game state
+let currentDifficulty = null;
+let targetNumber = 0;
+let attemptsLeft = 0;
+let timeLeft = 0;
+let maxTime = 0;
+let timerInterval = null;
+let guessHistory = [];
+let gameStarted = false;
 
+// Initialize game on load
+window.onload = function() {
+    loadHighScores();
+};
+
+// Select difficulty and start game
+function selectDifficulty(difficulty) {
+    currentDifficulty = difficulty;
+    const config = DIFFICULTY_CONFIG[difficulty];
+    
+    // Update UI
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    document.querySelector(`.difficulty-btn.${difficulty}`).classList.add('selected');
+    
+    // Hide difficulty section and show game
+    setTimeout(() => {
+        document.getElementById('difficultySection').style.display = 'none';
+        document.getElementById('gameSection').style.display = 'block';
+        
+        // Set difficulty badge
+        const badge = document.getElementById('difficultyBadge');
+        badge.className = `difficulty-badge ${difficulty}`;
+        badge.textContent = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+        
+        // Initialize game
+        initializeGame(config);
+    }, 300);
+}
+
+// Initialize game with difficulty config
+function initializeGame(config) {
+    targetNumber = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+    attemptsLeft = config.attempts;
+    timeLeft = config.time;
+    maxTime = config.time;
+    guessHistory = [];
+    gameStarted = false;
+    
+    // Update UI
+    document.getElementById('attemptsLeft').textContent = attemptsLeft;
+    document.getElementById('timeLeft').textContent = timeLeft;
+    document.getElementById('rangeDisplay').textContent = `${config.min}-${config.max}`;
+    document.getElementById('progressBar').style.width = '100%';
+    document.getElementById('guessInput').setAttribute('min', config.min);
+    document.getElementById('guessInput').setAttribute('max', config.max);
+    document.getElementById('guessInput').setAttribute('placeholder', `${config.min} - ${config.max}`);
+    document.getElementById('guessHistory').style.display = 'none';
+    document.getElementById('hint').textContent = '';
+    document.getElementById('hint').className = 'hint';
+    
+    // Display high score for current difficulty
+    displayHighScore();
+}
+
+// Start timer on first guess
 function startTimer() {
     timerInterval = setInterval(() => {
         timeLeft--;
-        timeDisplay.textContent = timeLeft;
-
-        if (timeLeft <= 10) {
-            timeDisplay.className = 'info-value danger';
-        } else if (timeLeft <= 15) {
-            timeDisplay.className = 'info-value warning';
-        }
-
+        document.getElementById('timeLeft').textContent = timeLeft;
+        
+        const progressPercent = (timeLeft / maxTime) * 100;
+        document.getElementById('progressBar').style.width = progressPercent + '%';
+        
         if (timeLeft <= 0) {
-            clearInterval(timerInterval);
-            if (!gameOver) {
-                gameOver = true;
-                showTimeoutPopup();
-                endGame(false);
-            }
+            endGame(false);
         }
     }, 1000);
 }
 
-startTimer();
-
-function toggleTheme() {
-    isDarkTheme = !isDarkTheme;
-    document.body.classList.toggle('dark-theme');
-    themeIcon.textContent = isDarkTheme ? '☀️' : '🌙';
-}
-
-guessInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        makeGuess();
-    }
-});
-
+// Make a guess
 function makeGuess() {
-    if (gameOver) return;
+    const input = document.getElementById('guessInput');
+    const config = DIFFICULTY_CONFIG[currentDifficulty];
+    const guess = parseInt(input.value);
+    const hint = document.getElementById('hint');
 
-    const guess = parseInt(guessInput.value);
-
-    if (!guess || guess < 1 || guess > 100) {
-        showHint('⚠️ Enter a valid number between 1 and 100!', 'error');
-        container.classList.add('shake');
-        setTimeout(() => container.classList.remove('shake'), 400);
+    if (!guess || guess < config.min || guess > config.max) {
+        hint.textContent = `⚠️ Please enter a number between ${config.min} and ${config.max}`;
+        hint.className = 'hint';
         return;
     }
 
-    guessCount++;
-    guesses.push(guess);
+    // Start timer on first guess
+    if (!gameStarted) {
+        startTimer();
+        gameStarted = true;
+    }
+
+    guessHistory.push(guess);
     updateGuessHistory();
 
     attemptsLeft--;
-    attemptsDisplay.textContent = attemptsLeft;
-    updateProgressBar();
-
-    const difference = Math.abs(guess - targetNumber);
+    document.getElementById('attemptsLeft').textContent = attemptsLeft;
 
     if (guess === targetNumber) {
-        gameOver = true;
-        clearInterval(timerInterval);
-        const attemptsUsed = 5 - attemptsLeft;
-        const timeTaken = 45 - timeLeft;
-        showWinPopup(attemptsUsed, timeTaken);
-        container.classList.add('glow');
         endGame(true);
     } else if (attemptsLeft === 0) {
-        gameOver = true;
-        clearInterval(timerInterval);
-        showLosePopup();
         endGame(false);
     } else {
-        const direction = guess < targetNumber ? 'higher' : 'lower';
-        let message = '';
-
-        if (difference <= 3) {
-            message = `🔥 Very Close! Try a little ${direction}`;
-        } else if (difference <= 10) {
-            message = `👍 Getting closer… go ${direction}`;
-        } else if (difference <= 25) {
-            message = `🙂 Warmer… try ${direction}`;
+        if (guess > targetNumber) {
+            hint.textContent = '📉 Too high! Try a lower number';
+            hint.className = 'hint too-high';
         } else {
-            message = `❄️ Cold… go much ${direction}`;
-        }
-
-        showHint(message, 'info');
-        container.classList.add('shake');
-        setTimeout(() => container.classList.remove('shake'), 400);
-
-        if (guessCount === 3 && !hintShown) {
-            showHintBulb();
+            hint.textContent = '📈 Too low! Try a higher number';
+            hint.className = 'hint too-low';
         }
     }
 
-    guessInput.value = '';
-    guessInput.focus();
+    input.value = '';
+    input.focus();
 }
 
+// Update guess history display
 function updateGuessHistory() {
-    guessHistory.style.display = 'block';
-    const guessItem = document.createElement('span');
-    guessItem.className = 'guess-item';
-    guessItem.textContent = guesses[guesses.length - 1];
-    historyItems.appendChild(guessItem);
-}
-
-function updateProgressBar() {
-    const percentage = (attemptsLeft / 5) * 100;
-    progressBar.style.width = `${percentage}%`;
-
-    if (percentage <= 40) {
-        progressBar.style.background = 'linear-gradient(90deg, #ff416c 0%, #ff4b2b 100%)';
-    } else if (percentage <= 60) {
-        progressBar.style.background = 'linear-gradient(90deg, #f8b500 0%, #fceabb 100%)';
+    const historyDiv = document.getElementById('guessHistory');
+    const itemsDiv = document.getElementById('historyItems');
+    
+    if (guessHistory.length > 0) {
+        historyDiv.style.display = 'block';
+        itemsDiv.innerHTML = guessHistory.map(g => 
+            `<div class="history-item">${g}</div>`
+        ).join('');
     }
 }
 
-function showHintBulb() {
-    const bulb = document.createElement('div');
-    bulb.className = 'hint-bulb';
-    bulb.innerHTML = '💡';
-    bulb.title = 'Click for a strategy hint';
-    bulb.onclick = showStrategyHint;
-    container.style.position = 'relative';
-    container.appendChild(bulb);
-}
-
-function showStrategyHint() {
-    if (hintShown) return;
-    hintShown = true;
-
-    const strategyDiv = document.createElement('div');
-    strategyDiv.className = 'strategy-hint';
-    strategyDiv.innerHTML = `
-        <strong>💡 Smart Move:</strong>
-        Think like a detective! Instead of random guesses, try the middle number first. 
-        Each hint cuts your search area in half. It's like finding a page in a book—you don't 
-        start from page 1, you open in the middle and decide which half to check next! 📖✨
-    `;
-
-    hintDiv.parentNode.insertBefore(strategyDiv, hintDiv);
-
-    const bulb = document.querySelector('.hint-bulb');
-    if (bulb) {
-        bulb.style.animation = 'none';
-        bulb.style.opacity = '0.5';
-        bulb.style.cursor = 'default';
-        bulb.onclick = null;
+// End game
+function endGame(won) {
+    clearInterval(timerInterval);
+    gameStarted = false;
+    
+    if (won) {
+        const score = calculateScore();
+        checkAndUpdateHighScore(score);
+        showCelebration(true, score);
+    } else {
+        showCelebration(false, 0);
     }
 }
 
-function showWinPopup(attempts, timeTaken) {
-    const overlay = document.createElement('div');
-    overlay.className = 'popup-overlay';
-    overlay.innerHTML = `
-        <div class="popup">
-            <div class="popup-icon">🎉</div>
-            <div class="popup-title">Legendary!</div>
-            <div class="popup-message">You beat the extreme challenge!</div>
-            <div class="popup-number">${targetNumber}</div>
-            <div class="popup-stats">✅ ${attempts} attempt${attempts === 1 ? '' : 's'}</div>
-            <div class="popup-stats">⏱️ ${timeTaken} seconds</div>
-            <button class="popup-close" onclick="closePopup()">Play Again</button>
-        </div>
-    `;
-    document.body.appendChild(overlay);
+// Calculate score: (remaining attempts × 100) + remaining time
+function calculateScore() {
+    return (attemptsLeft * 100) + timeLeft;
 }
 
-function showLosePopup() {
-    const overlay = document.createElement('div');
-    overlay.className = 'popup-overlay';
-    overlay.innerHTML = `
-        <div class="popup">
-            <div class="popup-icon">😢</div>
-            <div class="popup-title">Game Over!</div>
-            <div class="popup-message">You've run out of attempts!</div>
-            <div class="popup-message">The number was:</div>
-            <div class="popup-number">${targetNumber}</div>
-            <button class="popup-close" onclick="closePopup()">Try Again</button>
-        </div>
-    `;
-    document.body.appendChild(overlay);
+// Show celebration/game over modal
+function showCelebration(won, score) {
+    const modal = document.getElementById('celebrationModal');
+    const content = document.getElementById('celebrationContent');
+    const title = document.getElementById('modalTitle');
+    const message = document.getElementById('modalMessage');
+    const timeStatItem = document.getElementById('timeStatItem');
+    const newHighScoreMsg = document.getElementById('newHighScoreMsg');
+    
+    modal.style.display = 'flex';
+    
+    document.getElementById('winNumber').textContent = targetNumber;
+    document.getElementById('winAttempts').textContent = DIFFICULTY_CONFIG[currentDifficulty].attempts - attemptsLeft;
+    
+    if (won) {
+        content.classList.remove('game-over');
+        title.textContent = '🎉 YOU WON! 🎉';
+        message.textContent = 'Congratulations!';
+        document.getElementById('winTime').textContent = maxTime - timeLeft;
+        document.getElementById('finalScore').textContent = score;
+        timeStatItem.style.display = 'block';
+        
+        // Check if new high score
+        const highScoreKey = `highScore_${currentDifficulty}`;
+        const currentHighScore = parseInt(localStorage.getItem(highScoreKey)) || 0;
+        if (score > currentHighScore) {
+            newHighScoreMsg.style.display = 'block';
+        } else {
+            newHighScoreMsg.style.display = 'none';
+        }
+        
+        createConfetti();
+        createFireworks();
+    } else {
+        content.classList.add('game-over');
+        title.textContent = '😢 GAME OVER';
+        message.textContent = `Better luck next time!`;
+        timeStatItem.style.display = 'none';
+        newHighScoreMsg.style.display = 'none';
+        document.getElementById('finalScore').textContent = '0';
+    }
 }
 
-function showTimeoutPopup() {
-    const overlay = document.createElement('div');
-    overlay.className = 'popup-overlay';
-    overlay.innerHTML = `
-        <div class="popup">
-            <div class="popup-icon">⏰</div>
-            <div class="popup-title">Time's Up!</div>
-            <div class="popup-message">You ran out of time!</div>
-            <div class="popup-message">The number was:</div>
-            <div class="popup-number">${targetNumber}</div>
-            <button class="popup-close" onclick="closePopup()">Try Again</button>
-        </div>
-    `;
-    document.body.appendChild(overlay);
+// Confetti animation
+function createConfetti() {
+    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a29bfe', '#fd79a8', '#fdcb6e'];
+    
+    for (let i = 0; i < 100; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.top = -10 + 'px';
+            confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+            confetti.style.animationDelay = Math.random() * 0.5 + 's';
+            document.body.appendChild(confetti);
+            
+            setTimeout(() => confetti.remove(), 3000);
+        }, i * 30);
+    }
 }
 
-function closePopup() {
-    const overlay = document.querySelector('.popup-overlay');
-    if (overlay) overlay.remove();
-    restartGame();
+// Fireworks animation
+function createFireworks() {
+    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7'];
+    
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            const centerX = Math.random() * window.innerWidth;
+            const centerY = Math.random() * window.innerHeight * 0.5;
+            
+            for (let j = 0; j < 30; j++) {
+                const firework = document.createElement('div');
+                firework.className = 'firework';
+                firework.style.left = centerX + 'px';
+                firework.style.top = centerY + 'px';
+                firework.style.background = colors[Math.floor(Math.random() * colors.length)];
+                
+                const angle = (Math.PI * 2 * j) / 30;
+                const velocity = 100 + Math.random() * 100;
+                firework.style.setProperty('--x', Math.cos(angle) * velocity + 'px');
+                firework.style.setProperty('--y', Math.sin(angle) * velocity + 'px');
+                
+                document.body.appendChild(firework);
+                setTimeout(() => firework.remove(), 1000);
+            }
+        }, i * 400);
+    }
 }
 
-function showHint(message, type) {
-    hintDiv.textContent = message;
-    hintDiv.className = `hint ${type}`;
+// Close modal and reset game
+function closeModalAndReset() {
+    document.getElementById('celebrationModal').style.display = 'none';
+    resetGame();
 }
 
-function endGame() {
-    guessInput.disabled = true;
-    guessBtn.disabled = true;
+// Reset game
+function resetGame() {
     clearInterval(timerInterval);
-
-    const bulb = document.querySelector('.hint-bulb');
-    if (bulb) bulb.remove();
-
-    const restartBtn = document.createElement('button');
-    restartBtn.textContent = '🔄 Play Again';
-    restartBtn.className = 'restart-btn';
-    restartBtn.onclick = restartGame;
-    guessBtn.parentNode.insertBefore(restartBtn, hintDiv);
+    timerInterval = null;
+    
+    // Show difficulty selection again
+    document.getElementById('gameSection').style.display = 'none';
+    document.getElementById('difficultySection').style.display = 'block';
+    
+    // Reset difficulty selection
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    
+    currentDifficulty = null;
+    document.getElementById('guessInput').value = '';
 }
 
-function restartGame() {
-    targetNumber = Math.floor(Math.random() * 100) + 1;
-    attemptsLeft = 5;
-    gameOver = false;
-    guessCount = 0;
-    guesses = [];
-    hintShown = false;
-    timeLeft = 45;
-    clearInterval(timerInterval);
-
-    attemptsDisplay.textContent = attemptsLeft;
-    timeDisplay.textContent = timeLeft;
-    timeDisplay.className = 'info-value';
-    guessInput.disabled = false;
-    guessBtn.disabled = false;
-    guessInput.value = '';
-    hintDiv.textContent = '';
-    hintDiv.className = 'hint';
-    container.classList.remove('glow');
-    progressBar.style.width = '100%';
-    progressBar.style.background = 'linear-gradient(90deg, #11998e 0%, #38ef7d 100%)';
-    guessHistory.style.display = 'none';
-    historyItems.innerHTML = '';
-
-    const restartBtn = document.querySelector('.restart-btn');
-    if (restartBtn) restartBtn.remove();
-
-    const strategyHint = document.querySelector('.strategy-hint');
-    if (strategyHint) strategyHint.remove();
-
-    const bulb = document.querySelector('.hint-bulb');
-    if (bulb) bulb.remove();
-
-    guessInput.focus();
-    startTimer();
+// Load high scores from localStorage
+function loadHighScores() {
+    // Initialize high scores if they don't exist
+    ['easy', 'medium', 'hard'].forEach(diff => {
+        const key = `highScore_${diff}`;
+        if (!localStorage.getItem(key)) {
+            localStorage.setItem(key, '0');
+        }
+    });
 }
+
+// Display high score for current difficulty
+function displayHighScore() {
+    if (!currentDifficulty) return;
+    
+    const highScoreKey = `highScore_${currentDifficulty}`;
+    const highScore = localStorage.getItem(highScoreKey) || '0';
+    document.getElementById('highScoreDisplay').textContent = highScore;
+}
+
+// Check and update high score
+function checkAndUpdateHighScore(score) {
+    const highScoreKey = `highScore_${currentDifficulty}`;
+    const currentHighScore = parseInt(localStorage.getItem(highScoreKey)) || 0;
+    
+    if (score > currentHighScore) {
+        localStorage.setItem(highScoreKey, score.toString());
+        displayHighScore();
+    }
+}
+
+// Toggle dark mode
+function toggleTheme() {
+    document.body.classList.toggle('dark-mode');
+    const icon = document.getElementById('themeIcon');
+    icon.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+}
+
+// Toggle info modal
+function toggleInfo() {
+    const modal = document.getElementById('infoModal');
+    if (modal.style.display === 'flex') {
+        modal.style.display = 'none';
+    } else {
+        modal.style.display = 'flex';
+    }
+}
+
+// Enter key support
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('guessInput');
+    if (input) {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                makeGuess();
+            }
+        });
+    }
+});
