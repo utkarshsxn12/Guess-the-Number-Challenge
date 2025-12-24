@@ -7,47 +7,139 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="bg-circle"></div>
+    <div class="bg-circle"></div>
+    <div class="bg-circle"></div>
+
     <div class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
         <span id="themeIcon">🌙</span>
     </div>
 
+    <div class="info-toggle" onclick="toggleInfo()" title="How to Play & Scoring">
+        <span>ℹ️</span>
+    </div>
+
+    <!-- Info Modal -->
+    <div class="info-modal" id="infoModal">
+        <div class="info-content">
+            <div class="info-close" onclick="toggleInfo()">✕</div>
+            <h2>📖 How to Play</h2>
+            <div class="info-section">
+                <h3>🎯 Objective</h3>
+                <p>Guess the secret number within the given range before time runs out!</p>
+            </div>
+            <div class="info-section">
+                <h3>🎮 How to Play</h3>
+                <ol>
+                    <li>Select a difficulty level (Easy, Medium, or Hard)</li>
+                    <li>Enter your guess in the input field</li>
+                    <li>Submit your guess - you'll get hints if you're too high or too low</li>
+                    <li>Keep guessing until you find the number or run out of attempts/time</li>
+                </ol>
+            </div>
+            <div class="info-section">
+                <h3>💯 Scoring System</h3>
+                <div class="score-formula">
+                    <strong>Score = (Remaining Attempts × 100) + Remaining Time</strong>
+                </div>
+                <p><strong>Example:</strong> If you win with 3 attempts left and 25 seconds remaining:</p>
+                <p class="score-example">Score = (3 × 100) + 25 = <strong>325 points</strong></p>
+                <p class="score-tip">💡 <strong>Tip:</strong> Guess faster and use fewer attempts to get a higher score!</p>
+            </div>
+            <div class="info-section">
+                <h3>🏆 High Scores</h3>
+                <p>Your best score for each difficulty is saved locally. Try to beat your own record!</p>
+            </div>
+        </div>
+    </div>
+
     <div class="container" id="gameContainer">
         <h1>🎯 Guess The Number</h1>
-        <p class="subtitle">I'm thinking of a number between 1 and 100 • Beat the clock!</p>
+        <p class="subtitle">Choose your difficulty and beat the clock!</p>
 
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressBar" style="width: 100%;"></div>
-        </div>
-
-        <div class="game-info">
-            <div class="info-item">
-                <div class="info-label">Attempts Left</div>
-                <div class="info-value" id="attemptsLeft">5</div>
+        <!-- Difficulty Selection -->
+        <div class="difficulty-section" id="difficultySection">
+            <div class="difficulty-title">Select Difficulty Level</div>
+            <div class="difficulty-buttons">
+                <div class="difficulty-btn easy" onclick="selectDifficulty('easy')">
+                    <span class="diff-label">🟢 Easy</span>
+                    <span class="diff-details">1-100 • 7 tries • 60s</span>
+                </div>
+                <div class="difficulty-btn medium" onclick="selectDifficulty('medium')">
+                    <span class="diff-label">🟡 Medium</span>
+                    <span class="diff-details">1-150 • 5 tries • 45s</span>
+                </div>
+                <div class="difficulty-btn hard" onclick="selectDifficulty('hard')">
+                    <span class="diff-label">🔴 Hard</span>
+                    <span class="diff-details">1-200 • 5 tries • 30s</span>
+                </div>
             </div>
-            <div class="info-item">
-                <div class="info-label">Range</div>
-                <div class="info-value">1-100</div>
+        </div>
+
+        <!-- Game Section (hidden until difficulty selected) -->
+        <div id="gameSection" style="display: none;">
+            <div style="text-align: center;">
+                <span class="difficulty-badge" id="difficultyBadge"></span>
             </div>
-            <div class="info-item">
-                <div class="info-label">Time</div>
-                <div class="info-value" id="timeLeft">45</div>
+
+            <!-- High Score Display -->
+            <div class="high-score-section">
+                <div class="high-score-label">🏆 High Score</div>
+                <div class="high-score-value" id="highScoreDisplay">0</div>
             </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar" style="width: 100%;"></div>
+            </div>
+
+            <div class="game-info">
+                <div class="info-item">
+                    <div class="info-label">Attempts Left</div>
+                    <div class="info-value" id="attemptsLeft">5</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Range</div>
+                    <div class="info-value" id="rangeDisplay">1-100</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Time</div>
+                    <div class="info-value" id="timeLeft">45</div>
+                </div>
+            </div>
+
+            <div class="guess-history" id="guessHistory" style="display: none;">
+                <div class="guess-history-title">Your Guesses:</div>
+                <div id="historyItems"></div>
+            </div>
+
+            <div class="input-group">
+                <input type="number" inputmode="numeric" id="guessInput" placeholder="Enter your guess" min="1" max="100" autofocus>
+            </div>
+
+            <button id="guessBtn" onclick="makeGuess()">Submit Guess</button>
+
+            <div id="hint" class="hint"></div>
         </div>
-
-        <div class="guess-history" id="guessHistory" style="display: none;">
-            <div class="guess-history-title">Your Guesses:</div>
-            <div id="historyItems"></div>
-        </div>
-
-        <div class="input-group">
-            <input type="number" id="guessInput" placeholder="Enter your guess" min="1" max="100" autofocus>
-        </div>
-
-        <button id="guessBtn" onclick="makeGuess()">Submit Guess</button>
-
-        <div id="hint" class="hint"></div>
 
         <footer>Made by Utkarsh</footer>
+    </div>
+
+    <!-- Celebration Modal -->
+    <div class="celebration-modal" id="celebrationModal">
+        <div class="celebration-content" id="celebrationContent">
+            <h2 id="modalTitle">🎉 YOU WON! 🎉</h2>
+            <p id="modalMessage">Congratulations!</p>
+            <div id="newHighScoreMsg" class="new-high-score" style="display: none;">
+                🏆 NEW HIGH SCORE! 🏆
+            </div>
+            <div class="celebration-stats">
+                <div class="stat-item">🎯 Number: <strong id="winNumber"></strong></div>
+                <div class="stat-item">💯 Score: <strong id="finalScore"></strong></div>
+                <div class="stat-item" id="timeStatItem">⏱️ Time: <strong id="winTime"></strong>s</div>
+                <div class="stat-item">🎲 Attempts: <strong id="winAttempts"></strong></div>
+            </div>
+            <button onclick="closeModalAndReset()">🎮 Play Again</button>
+        </div>
     </div>
 
     <script src="script.js"></script>
