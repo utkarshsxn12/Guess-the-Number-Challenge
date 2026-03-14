@@ -5,7 +5,7 @@ The game challenges players to guess a randomly generated number within limited 
 
 ---
 
-## 🎮 Game Features
+## 🎮 Game Features 
 
 ✨ **Interactive Gameplay**
 - Guess the hidden number within a defined range
@@ -62,7 +62,7 @@ No external libraries used.
 1. Select a difficulty level
 2. Start guessing the number
 3. Use hints to refine your guess
-4. Beat the timer and attempts limit
+4. Beat the timer and attempts  are limited
 5. Try to set a new high score 🏆
 
 ---
